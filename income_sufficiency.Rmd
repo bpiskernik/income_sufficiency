@@ -1,0 +1,101 @@
+---
+title: "Income Sufficiency"
+author: "Bernhard Piskernik"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(plotly)
+```
+# constants
+
+income related constants
+
+```{r}
+adult <- 4529
+child <- 200
+
+unemployed_factor <- 0.7
+
+alimony <- c(0, 0.15, 0.25, 0.30) # alimony rate for 0, 1, 2, and 3  children
+```
+
+
+expenditure constants
+
+```{r}
+a1c0 <- 3977
+a2c0 <- 6605
+a2c1 <- 7057
+a2c2 <- 7635
+a2c3 <- 7968
+```
+
+For single parent households there is no differentiating between number of  children. Let's use analoguous value from two parent households and scale accordingly  after disentangling the costs for the adult and the children.
+
+```{r}
+a1cx <- 5354.18
+a2cx <- 7492.73
+
+a1c1 <-a1 + (a2c1-a2)/(a2cx-a2)*(a1cx-a1)
+a1c2 <-a1 + (a2c2-a2)/(a2cx-a2)*(a1cx-a1)
+a1c3 <-a1 + (a2c3-a2)/(a2cx-a2)*(a1cx-a1)
+```
+
+# create tables for incomes and expenditures
+
+create data frame with incomes
+
+```{r}
+df_income <-crossing(
+    employment_level = c(1, 0.75, 0.5),
+    cohabiting_partner = c('none', 'working','not working'),
+    children = 0:3
+  ) %>% 
+  mutate(
+    income = adult * employment_level + child * children + case_when(
+      cohabiting_partner == 'not working' ~ adult * unemployed_factor,
+      cohabiting_partner == 'working' ~ adult,
+      cohabiting_partner == 'none' ~ adult * alimony[children+1]
+    ),
+    adults = ifelse(cohabiting_partner == 'none', 1, 2)
+  ) 
+```
+
+create data frame with the expenditures
+
+```{r}
+df_exp <- tibble(
+    adults = rep(1:2, each=4),
+    children = rep(0:3, 2)
+  ) %>%
+  # get expenditure my name pattern
+  rowwise() %>% 
+  mutate(
+    exp = get(paste0('a', adults, 'c', children))
+  ) 
+
+```
+
+join them and use the ratio of income to expenditure of a single person working full-time as reference to scale all other combinations
+
+```{r}
+df_final <- df_income %>%
+  full_join(df_exp) %>%
+  mutate(
+    ratio = income/exp,
+    sufficiency = ratio/(adult/a1c0),
+  ) %>%
+  arrange(cohabiting_partner, desc(employment_level))
+```
+
+
+```{r}
+df_final %>%
+  ggplot(aes(x=children, y = sufficiency, fill=children)) +
+  geom_col() +
+  facet_grid(employment_level ~ cohabiting_partner)
+```
+
