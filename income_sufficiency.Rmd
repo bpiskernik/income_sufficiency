@@ -39,9 +39,9 @@ For single parent households there is no differentiating between number of  chil
 a1cx <- 5354.18
 a2cx <- 7492.73
 
-a1c1 <-a1 + (a2c1-a2)/(a2cx-a2)*(a1cx-a1)
-a1c2 <-a1 + (a2c2-a2)/(a2cx-a2)*(a1cx-a1)
-a1c3 <-a1 + (a2c3-a2)/(a2cx-a2)*(a1cx-a1)
+a1c1 <-a1c0 + (a2c1-a2c0)/(a2cx-a2c0)*(a1cx-a1c0)
+a1c2 <-a1c0 + (a2c2-a2c0)/(a2cx-a2c0)*(a1cx-a1c0)
+a1c3 <-a1c0 + (a2c3-a2c0)/(a2cx-a2c0)*(a1cx-a1c0)
 ```
 
 # create tables for incomes and expenditures
@@ -93,9 +93,26 @@ df_final <- df_income %>%
 
 
 ```{r}
-df_final %>%
-  ggplot(aes(x=children, y = sufficiency, fill=children)) +
+
+p  <-  df_final %>%
+  ggplot(aes(x=children, y=sufficiency, fill=sufficiency, text=paste0(
+      'income sufficiency:\n', round(sufficiency,3)
+      ))) +
   geom_col() +
-  facet_grid(employment_level ~ cohabiting_partner)
+  facet_grid(employment_level ~ cohabiting_partner, labeller = labeller(
+    cohabiting_partner = function(string) {paste0('cohabiting partner:\n', string)},
+    employment_level = function(numeric) {paste0('employment:\n', as.numeric(numeric)*100,'%')}
+  )) +
+  guides(fill = 'none') +
+  theme_minimal() +
+  theme(plot.margin = margin(0.3,1,0.8,0.8, "cm")) +
+  scale_fill_continuous(type = "viridis")
+
+pp <- ggplotly(p, tooltip = "text") 
+pp
+```
+
+```{r}
+api_create(pp, filename = "income_sufficiency")
 ```
 
